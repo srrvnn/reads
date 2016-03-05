@@ -1,6 +1,6 @@
 # twtr-links
 
-get links for twitter idols to keep reading
+get links from twitter idols to build your reading list
 
 ### proof of concept
 
