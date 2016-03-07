@@ -4,6 +4,9 @@ get links from twitter idols to build your reading list
 
 ### proof of concept
 
+###### sign in the user
+https://dev.twitter.com/web/sign-in/implementing
+
 ###### get timeline of a user
 https://dev.twitter.com/rest/reference/get/statuses/user_timeline
 
