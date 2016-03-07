@@ -1,5 +1,5 @@
 var Reads = React.createClass({ getInitialState: function() {
-        return { user: null, user_id: null, post_status: null, post_id: null};
+        return { user: null, user_id: null, twitter_signin: null};
     },
     userStatusChange: function() {
         var _this = this;
@@ -17,6 +17,10 @@ var Reads = React.createClass({ getInitialState: function() {
         this.setState({post_status: status.message, post_id: status.id});
     },
     componentWillMount: function() {
+        var _this = this;
+        $.getJSON('http://localhost:5000/twitter_signin', function(data) {
+            _this.setState({twitter_signin: data.url});
+        })
     },
     render: function() {
         return (
@@ -26,7 +30,7 @@ var Reads = React.createClass({ getInitialState: function() {
                 {this.state.user === null
                     ? <ReadsIntro />
                     : <ReadsList user_id={this.state.user_id} onStatusChange={this.postStatusChange}/>}
-                <TWLogin user_id={this.state.user_id}/>
+                <TWLogin user_id={this.state.user_id} signin={this.state.twitter_signin}/>
             </div>
         );
     }
@@ -35,12 +39,7 @@ var Reads = React.createClass({ getInitialState: function() {
 var TWLogin = React.createClass({
     render: function() {
         return (
-            <div className="login">
-                {this.props.user_id == null ? '' : <img src={'http://graph.facebook.com/' + this.props.user_id + '/picture'} />}
-                <div className="fb-login-button" data-scope="public_profile,user_birthday,publish_actions"
-                     data-size="xlarge" data-auto-logout-link="true">
-                </div>
-            </div>
+            <a href={this.props.signin}><img className="twitter-signin" src="img/twitter_signin.png" /></a>
         );
     }
 });
