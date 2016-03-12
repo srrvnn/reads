@@ -1,4 +1,4 @@
-# twtr-links
+# reads
 
 get links from twitter idols to build your reading list
 
@@ -19,3 +19,6 @@ https://dev.twitter.com/rest/reference/get/users/lookup
 
 ###### search for people
 https://dev.twitter.com/rest/reference/get/users/search
+
+###### twitter node api
+https://www.npmjs.com/package/twitter

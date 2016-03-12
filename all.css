@@ -159,5 +159,7 @@
 
 .twitter-signin {
 
+    margin: auto;
     height: 35px;
+    display: block;
 }

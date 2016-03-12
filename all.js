@@ -1,46 +1,74 @@
-var Reads = React.createClass({ getInitialState: function() {
-        return { user: null, user_id: null, twitter_signin: null};
+var Router = window.ReactRouter.Router;
+var Route = window.ReactRouter.Route;
+var Link = window.ReactRouter.Link;
+var browserHistory = window.ReactRouter.browserHistory;
+
+var Reads = React.createClass({
+    getInitialState: function() {
+        return { user_name: null, reads_list: null};
     },
     userStatusChange: function() {
         var _this = this;
-        FB.getLoginStatus(function(response) {
-            if (response.status === 'connected') {
-                FB.api('/me', function(response) {
-                    _this.setState({user: response.name, user_id: response.id});
-                })
-            } else {
-                _this.setState({user: null, user_id: null, post_status: null, post_id: null});
-            }
+        $.getJSON('http://localhost:5000/twitter_list_timeline', {
+            user_access_token: store.get('user_access_token'),
+            user_access_secret: store.get('user_access_secret'),
+            since_id: store.get('timeline_since_id'),
+            user_name: this.state.user_name || store.get('user_name')}, function(data) {
+                console.log(data);
         });
-    },
-    postStatusChange: function(status) {
-        this.setState({post_status: status.message, post_id: status.id});
     },
     componentWillMount: function() {
         var _this = this;
-        $.getJSON('http://localhost:5000/twitter_signin', function(data) {
-            _this.setState({twitter_signin: data.url});
-        })
+        var query = this.props.location.query;
+        if (store.get('user_access_token') && store.get('user_access_secret') && store.get('user_name')) {
+            _this.setState({user_name: store.get('user_name')});
+            _this.userStatusChange();
+        } else if (query.oauth_token && query.oauth_verifier) {
+            $.getJSON('http://localhost:5000/twitter_signin_callback', {
+                oauth_token: query.oauth_token,
+                oauth_verifier: query.oauth_verifier}, function(data) {
+
+                    store.set('user_access_token', data.user_token);
+                    store.set('user_access_secret', data.user_secret);
+                    store.set('user_name', data.user_name);
+
+                    _this.setState({user_name: store.get('user_name')});
+                    _this.userStatusChange();
+            });
+        }
     },
     render: function() {
         return (
             <div className="content">
                 <h1>Reads, from your Twitter.</h1>
 
-                {this.state.user === null
+                {this.state.user_name === null
                     ? <ReadsIntro />
-                    : <ReadsList user_id={this.state.user_id} onStatusChange={this.postStatusChange}/>}
-                <TWLogin user_id={this.state.user_id} signin={this.state.twitter_signin}/>
+                    : <ReadsList />}
             </div>
         );
     }
 });
 
-var TWLogin = React.createClass({
+var ReadsIntro = React.createClass({
     render: function() {
         return (
-            <a href={this.props.signin}><img className="twitter-signin" src="img/twitter_signin.png" /></a>
-        );
+            <div className="diaries-intro reads-intro">
+                Add Twitterati, and filter the links they tweet about. <br/>
+
+                <span className="more">
+                    <ul>
+                        <li> Search from your friends, to all public profiles. </li>
+                        <li> Filter external links, and keep a list of 'reads'. </li>
+                        <li> Add custom filters to keep certain links coming. </li>
+                        <li> Soon: Like, and retweet your favorite reads. </li>
+                    </ul>
+                </span>
+
+                <a href="http://localhost:5000/twitter_signin"><img className="twitter-signin" src="img/twitter_signin.png" /></a>
+
+            </div>
+        )
     }
 });
 
@@ -154,24 +182,8 @@ var ReadsItem = React.createClass({
     }
 });
 
-var ReadsIntro = React.createClass({
-    render: function() {
-        return (
-            <div className="diaries-intro reads-intro">
-                Add Twitterati, and filter the links they tweet about. <br/>
-
-                <span className="more">
-                    <ul>
-                        <li> Search from your friends, to all public profiles. </li>
-                        <li> Filter external links, and keep a list of 'reads'. </li>
-                        <li> Add custom filters to keep certain links coming. </li>
-                        <li> Soon: Like, and retweet your favorite reads. </li>
-                    </ul>
-                </span>
-
-            </div>
-        )
-    }
-});
-
-ReactDOM.render(<Reads />, document.getElementById('container'));
+ReactDOM.render((
+  <Router history={browserHistory}>
+    <Route path="/" component={Reads}/>
+  </Router>
+), document.getElementById('container'))
