@@ -26,17 +26,17 @@
     font-weight: 200;
 }
 
-.diaries-post,
-.diaries-post *,
-.diaries-intro,
-.diaries-intro * {
+.reads-post,
+.reads-post *,
+.reads-intro,
+.reads-intro * {
 
     font-family: 'Hind', sans-serif;
     letter-spacing: 0.5px;
     font-weight: normal;
 }
 
-.diaries-status {
+.reads-status {
 
     font-family: 'Hind', sans-serif;
     font-size: 20px;
@@ -44,13 +44,13 @@
     font-weight: normal;
 }
 
-.diaries-status a {
+.reads-status a {
 
     text-decoration: none;
     color: #3A5795;
 }
 
-.diaries-intro {
+.reads-intro {
 
     margin: 20px 100px;
 
@@ -58,7 +58,7 @@
     line-height: 62px;
 }
 
-.diaries-intro .more {
+.reads-intro .more {
 
     display: inline-block;
 
@@ -76,13 +76,13 @@
     text-align: left;
 }
 
-.diaries-post {
+.reads-post {
 
     width: 100%;
     margin: 50px auto;
 }
 
-.diaries-post textarea {
+.reads-post textarea {
 
     position: relative;
 
@@ -104,20 +104,20 @@
     line-height: 58px;
 }
 
-.diaries-post textarea:focus {
+.reads-post textarea:focus {
 
     border: 1px solid #E9EAED;
     border-radius: 5px;
     outline: none;
 }
 
-.diaries-post .actions {
+.reads-post .actions {
 
     height: 85px;
     margin: 20px;
 }
 
-.diaries-post button {
+.reads-post button {
 
     float: right;
 
@@ -135,12 +135,12 @@
     line-height: 35px;
 }
 
-.diaries-post button.post {
+.reads-post button.post {
 
     float: left;
 }
 
-.diaries-post button:hover {
+.reads-post button:hover {
 
     color: white;
     border-color: #3A5795;

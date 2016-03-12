@@ -5,7 +5,7 @@ var browserHistory = window.ReactRouter.browserHistory;
 
 var Reads = React.createClass({
     getInitialState: function() {
-        return { user_name: null, reads_list: null};
+        return { user_name: null, loading: false, reads_list: null};
     },
     userStatusChange: function() {
         var _this = this;
@@ -14,6 +14,8 @@ var Reads = React.createClass({
             user_access_secret: store.get('user_access_secret'),
             since_id: store.get('timeline_since_id'),
             user_name: this.state.user_name || store.get('user_name')}, function(data) {
+
+                _this.setState({loading: false});
                 console.log(data);
         });
     },
@@ -24,6 +26,7 @@ var Reads = React.createClass({
             _this.setState({user_name: store.get('user_name')});
             _this.userStatusChange();
         } else if (query.oauth_token && query.oauth_verifier) {
+            _this.setState({loading: true});
             $.getJSON('http://localhost:5000/twitter_signin_callback', {
                 oauth_token: query.oauth_token,
                 oauth_verifier: query.oauth_verifier}, function(data) {
@@ -44,7 +47,7 @@ var Reads = React.createClass({
 
                 {this.state.user_name === null
                     ? <ReadsIntro />
-                    : <ReadsList />}
+                    : <ReadsList loading={this.state.loading}/>}
             </div>
         );
     }
@@ -53,13 +56,13 @@ var Reads = React.createClass({
 var ReadsIntro = React.createClass({
     render: function() {
         return (
-            <div className="diaries-intro reads-intro">
+            <div className="reads-intro reads-intro">
                 Add Twitterati, and filter the links they tweet about. <br/>
 
                 <span className="more">
                     <ul>
                         <li> Search from your friends, to all public profiles. </li>
-                        <li> Filter external links, and keep a list of 'reads'. </li>
+                        <li> Keep a private twitter list of 'reads', and filter links. </li>
                         <li> Add custom filters to keep certain links coming. </li>
                         <li> Soon: Like, and retweet your favorite reads. </li>
                     </ul>
@@ -88,17 +91,17 @@ var ReadsList = React.createClass({
                 return;
             }
             if (store.enabled) {
-                var diaries_posts = store.get('diaries_posts') || [];
-                if (diaries_posts.length > 0
-                    && diaries_posts[diaries_posts.length - 1].posted == false) {
-                    diaries_posts.pop();
+                var reads_posts = store.get('reads_posts') || [];
+                if (reads_posts.length > 0
+                    && reads_posts[reads_posts.length - 1].posted == false) {
+                    reads_posts.pop();
                 }
-                diaries_posts.push({
+                reads_posts.push({
                     created_at: _this.state.created_at,
                     content: CryptoJS.AES.encrypt(_this.state.content, _this.props.user_id).toString(),
                     posted: false
                 });
-                store.set('diaries_posts', diaries_posts);
+                store.set('reads_posts', reads_posts);
             }
         }, 1000);
     },
@@ -118,9 +121,9 @@ var ReadsList = React.createClass({
 
         FB.api('/me/feed', 'POST', post_message, function (response) {
             if (store.enabled) {
-                var diaries_posts = store.get('diaries_posts');
-                diaries_posts[diaries_posts.length - 1].posted = true;
-                store.set('diaries_posts', diaries_posts);
+                var reads_posts = store.get('reads_posts');
+                reads_posts[reads_posts.length - 1].posted = true;
+                store.set('reads_posts', reads_posts);
             }
             if (response && !response.error) {
                 _this.props.onStatusChange({message: 'successful', id: response.id});
@@ -133,20 +136,20 @@ var ReadsList = React.createClass({
         var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         this.setState({content: (new Date()).toLocaleString('en-US', options) + '...\n', created_at: Date.now()});
         if (store.enabled) {
-            var diaries_posts = store.get('diaries_posts') || [];
-            if (diaries_posts.length > 0
-                && diaries_posts[diaries_posts.length - 1].posted == false) {
-                diaries_posts.pop();
+            var reads_posts = store.get('reads_posts') || [];
+            if (reads_posts.length > 0
+                && reads_posts[reads_posts.length - 1].posted == false) {
+                reads_posts.pop();
             }
-            store.set('diaries_posts', diaries_posts);
+            store.set('reads_posts', reads_posts);
             this.refs.post_textarea.focus();
         }
     },
     componentDidMount: function() {
         var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
 
-        if (store.enabled && store.get('diaries_posts') && store.get('diaries_posts').length > 0) {
-            var saved = store.get('diaries_posts').sort(function(a, b){ return b.created_at - a.created_at; }).pop();
+        if (store.enabled && store.get('reads_posts') && store.get('reads_posts').length > 0) {
+            var saved = store.get('reads_posts').sort(function(a, b){ return b.created_at - a.created_at; }).pop();
             if (saved && saved.posted) {
                 this.setState({content: (new Date()).toLocaleString('en-US', options) + '...\n', created_at: Date.now()});
             } else if (saved) {
@@ -160,7 +163,7 @@ var ReadsList = React.createClass({
     },
     render: function() {
         return (
-            <form className="diaries-post" onSubmit={this.onSubmit}>
+            <form className="reads-post" onSubmit={this.onSubmit}>
                 <textarea ref="post_textarea" onChange={this.onChange} value={this.state.content}></textarea>
                 <div className="actions">
                     <button className="post" type="submit">Post</button>
@@ -174,7 +177,7 @@ var ReadsList = React.createClass({
 var ReadsItem = React.createClass({
     render: function() {
         return (
-            <div className="diaries-status">
+            <div className="reads-status">
                 {this.props.status ? <span> The private post was {this.props.status}. </span> : ''}
                 {this.props.id ? <a href={'http://facebook.com/' + this.props.id} target="_blank"> See it on Facebook. </a> : ''}
             </div>
