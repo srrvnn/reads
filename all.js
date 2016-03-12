@@ -5,38 +5,23 @@ var browserHistory = window.ReactRouter.browserHistory;
 
 var Reads = React.createClass({
     getInitialState: function() {
-        return { user_name: null, loading: false, reads_list: null};
-    },
-    userStatusChange: function() {
-        var _this = this;
-        $.getJSON('http://localhost:5000/twitter_list_timeline', {
-            user_access_token: store.get('user_access_token'),
-            user_access_secret: store.get('user_access_secret'),
-            since_id: store.get('timeline_since_id'),
-            user_name: this.state.user_name || store.get('user_name')}, function(data) {
-
-                _this.setState({loading: false});
-                console.log(data);
-        });
+        return {loading: false, user_name: null};
     },
     componentWillMount: function() {
         var _this = this;
         var query = this.props.location.query;
         if (store.get('user_access_token') && store.get('user_access_secret') && store.get('user_name')) {
             _this.setState({user_name: store.get('user_name')});
-            _this.userStatusChange();
         } else if (query.oauth_token && query.oauth_verifier) {
             _this.setState({loading: true});
             $.getJSON('http://localhost:5000/twitter_signin_callback', {
                 oauth_token: query.oauth_token,
                 oauth_verifier: query.oauth_verifier}, function(data) {
-
                     store.set('user_access_token', data.user_token);
                     store.set('user_access_secret', data.user_secret);
                     store.set('user_name', data.user_name);
 
-                    _this.setState({user_name: store.get('user_name')});
-                    _this.userStatusChange();
+                    _this.setState({loading: false, user_name: store.get('user_name')});
             });
         }
     },
@@ -44,10 +29,9 @@ var Reads = React.createClass({
         return (
             <div className="content">
                 <h1>Reads, from your Twitter.</h1>
-
                 {this.state.user_name === null
                     ? <ReadsIntro />
-                    : <ReadsList loading={this.state.loading}/>}
+                    : <ReadsList onSignOut={this.onSignOut}/>}
             </div>
         );
     }
@@ -76,100 +60,76 @@ var ReadsIntro = React.createClass({
 });
 
 var ReadsList = React.createClass({
-    saveTimeout: null,
+    searchTimeout: null,
     getInitialState: function() {
-        return {content: null, created_at: null, updated_at: null};
+        return {loading: true, searching: true, user_name: store.get('user_name'), search: null, list: [], searchList: []};
     },
-    onChange: function(e) {
-        var _this = this;
-        this.setState({content: e.target.value});
-
-        // debounce, and save to local storage
-        clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(function() {
-            if (_this.state.content == null || _this.state.content.length < 1) {
-                return;
-            }
-            if (store.enabled) {
-                var reads_posts = store.get('reads_posts') || [];
-                if (reads_posts.length > 0
-                    && reads_posts[reads_posts.length - 1].posted == false) {
-                    reads_posts.pop();
-                }
-                reads_posts.push({
-                    created_at: _this.state.created_at,
-                    content: CryptoJS.AES.encrypt(_this.state.content, _this.props.user_id).toString(),
-                    posted: false
-                });
-                store.set('reads_posts', reads_posts);
-            }
-        }, 1000);
-    },
-    onSubmit: function(e) {
-        var _this = this;
-        e.preventDefault();
-        var post_message = {
-            'message': this.state.content
-        };
-
-        var first_line = post_message.message.split('\n')[0].replace('...', '');
-        var date = Date.parse(first_line);
-
-        post_message.message = isNaN(date)
-            ? post_message.message
-            : post_message.message.split('\n').slice(1).join('\n');
-
-        FB.api('/me/feed', 'POST', post_message, function (response) {
-            if (store.enabled) {
-                var reads_posts = store.get('reads_posts');
-                reads_posts[reads_posts.length - 1].posted = true;
-                store.set('reads_posts', reads_posts);
-            }
-            if (response && !response.error) {
-                _this.props.onStatusChange({message: 'successful', id: response.id});
-            } else {
-                _this.props.onStatusChange({message: 'unsuccessful'});
-            }
-        });
-    },
-    onClear: function() {
-        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        this.setState({content: (new Date()).toLocaleString('en-US', options) + '...\n', created_at: Date.now()});
-        if (store.enabled) {
-            var reads_posts = store.get('reads_posts') || [];
-            if (reads_posts.length > 0
-                && reads_posts[reads_posts.length - 1].posted == false) {
-                reads_posts.pop();
-            }
-            store.set('reads_posts', reads_posts);
-            this.refs.post_textarea.focus();
+    componentWillMount: function () {
+        if (this.state.user_name) {
+            this.getTweets();
+        } else {
+            this.props.onSignOut();
         }
     },
     componentDidMount: function() {
-        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
 
-        if (store.enabled && store.get('reads_posts') && store.get('reads_posts').length > 0) {
-            var saved = store.get('reads_posts').sort(function(a, b){ return b.created_at - a.created_at; }).pop();
-            if (saved && saved.posted) {
-                this.setState({content: (new Date()).toLocaleString('en-US', options) + '...\n', created_at: Date.now()});
-            } else if (saved) {
-                this.setState({content: CryptoJS.AES.decrypt(saved.content, this.props.user_id).toString(CryptoJS.enc.Utf8), created_at: saved.created_at});
-            }
-        } else {
-            this.setState({content: (new Date()).toLocaleString('en-US', options) + '...\n', created_at: Date.now()});
-        }
+    },
+    getTweets: function() {
+        var _this = this;
+        $.getJSON('http://localhost:5000/twitter_list_timeline', {
+            user_access_token: store.get('user_access_token'),
+            user_access_secret: store.get('user_access_secret'),
+            since_id: store.get('timeline_since_id'),
+            user_name: this.state.user_name}, function(data) {
 
-        this.refs.post_textarea.focus();
+                _this.setState({loading: false, list: JSON.parse(data)});
+        });
+    },
+    onSearchChange: function(e) {
+        var _this = this;
+        _this.setState({search: e.target.value || ''});
+        clearTimeout(_this.searchTimeout);
+        _this.searchTimeout = setTimeout(function() {
+            _this.setState({searching: true});
+            _this.setState({searchList: []});
+            if (_this.state.search.length < 1) return;
+            $.getJSON('http://localhost:5000/twitter_search_people', {
+                user_access_token: store.get('user_access_token'),
+                user_access_secret: store.get('user_access_secret'),
+                q: _this.state.search}, function(data) {
+
+                var searchResults = JSON.parse(data);
+                console.dir(searchResults);
+
+                var searchItems = searchResults && searchResults.map(function(item) {
+                    return {
+                        type: 'people',
+                        key: item.id_str,
+                        content: item.name,
+                        date: item.created_at,
+                        statuses_count: item.statuses_count,
+                        following: item.following,
+                        followers_count: item.followers_count,
+                        friends_count: item.friends_count,
+                        profile_image_url: item.profile_image_url
+                    }
+                });
+
+                _this.setState({searchList: searchItems});
+            });
+        }, 300);
     },
     render: function() {
+        var reads_items = this.state.searchList && this.state.searchList.map(function(item) {
+            return (
+                <ReadsItem key={item.key} item={item} />
+            )
+        });
         return (
-            <form className="reads-post" onSubmit={this.onSubmit}>
-                <textarea ref="post_textarea" onChange={this.onChange} value={this.state.content}></textarea>
-                <div className="actions">
-                    <button className="post" type="submit">Post</button>
-                    <button className="post" type="button" onClick={this.onClear}>x</button>
-                </div>
-            </form>
+            <div className="reads-list">
+                <input ref="reads-search" onChange={this.onSearchChange} value={this.state.search} />
+                {reads_items}
+            </div>
         );
     }
 });
@@ -177,9 +137,8 @@ var ReadsList = React.createClass({
 var ReadsItem = React.createClass({
     render: function() {
         return (
-            <div className="reads-status">
-                {this.props.status ? <span> The private post was {this.props.status}. </span> : ''}
-                {this.props.id ? <a href={'http://facebook.com/' + this.props.id} target="_blank"> See it on Facebook. </a> : ''}
+            <div className="reads-item">
+                {this.props.item.content}
             </div>
         )
     }
